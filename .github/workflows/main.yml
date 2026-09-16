@@ -1,0 +1,102 @@
+name: Refresh Dailymotion M3U
+
+on:
+
+  # GitHub Actions sayfasından
+  # manuel çalıştırma
+  workflow_dispatch:
+
+  # Yaklaşık 30 dakikada bir
+  schedule:
+    - cron: "*/30 * * * *"
+
+
+# Workflow'un repository'ye
+# playlist.m3u yazabilmesi için
+permissions:
+  contents: write
+
+
+jobs:
+
+  refresh-playlist:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ------------------------------------------------
+      # Repository
+      # ------------------------------------------------
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      # ------------------------------------------------
+      # Python
+      # ------------------------------------------------
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+
+        with:
+          python-version: "3.12"
+
+
+      # ------------------------------------------------
+      # Dependencies
+      # ------------------------------------------------
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+
+      # ------------------------------------------------
+      # M3U oluştur
+      # ------------------------------------------------
+
+      - name: Generate playlist
+        env:
+
+          DAILYMOTION_CLIENT_ID: ${{ secrets.DAILYMOTION_CLIENT_ID }}
+
+          DAILYMOTION_CLIENT_SECRET: ${{ secrets.DAILYMOTION_CLIENT_SECRET }}
+
+          DAILYMOTION_PROFILE_ID: ${{ secrets.DAILYMOTION_PROFILE_ID }}
+
+        run: |
+          python main.py
+
+
+      # ------------------------------------------------
+      # GitHub'a kaydet
+      # ------------------------------------------------
+
+      - name: Commit updated playlist
+        run: |
+
+          git config user.name \
+            "github-actions[bot]"
+
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+
+          git add playlist.m3u
+
+
+          if git diff --cached --quiet; then
+
+            echo "Playlist değişmedi."
+
+          else
+
+            git commit \
+              -m "Update Dailymotion playlist"
+
+            git push
+
+          fi
